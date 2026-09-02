@@ -121,15 +121,15 @@ fi
 echo -e "${GREEN}[2/3] 解压安装包 ...${NC}"
 cd "$TMP_DIR"
 unzip -oq xpanel.zip
-if [ ! -f "$TMP_DIR/xpanel/install.sh" ]; then
-  echo -e "${RED}[错误] 安装包结构不正确：未找到 xpanel/install.sh${NC}"
+if [ ! -f "$TMP_DIR/install.sh" ]; then
+  echo -e "${RED}[错误] 安装包结构不正确：未找到 install.sh${NC}"
   rm -rf "$TMP_DIR"; exit 1
 fi
 
 # ---------- 5. 执行安装 ----------
 echo -e "${GREEN}[3/3] 执行安装程序 ...${NC}"
 echo ""
-cd "$TMP_DIR/xpanel"
+cd "$TMP_DIR"
 # 把用户设置的环境变量透传给安装脚本
 export PANEL_PORT ADMIN_USER ADMIN_PASS NO_NGINX NO_PHP NO_MAIL \
        XPANEL_SKIP_ROOT XPANEL_SKIP_SYSTEMD XPANEL_INSTALL_DIR \
