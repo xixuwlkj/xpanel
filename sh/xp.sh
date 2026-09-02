@@ -59,21 +59,52 @@ TMP_DIR="/tmp/xpanel_install_$$"
 mkdir -p "$TMP_DIR"
 echo -e "${GREEN}[1/3] 下载面板安装包 ...${NC}"
 
-# 方式①：GitHub codeload —— 直接从 git 拉最新，不走 CDN 缓存（最可靠）
-echo -e "     [方式1] codeload 拉取最新仓库 ..."
-curl -sSL --retry 3 --retry-delay 2 -o "$TMP_DIR/repo.zip" "https://codeload.github.com/$GITHUB_USER/$GITHUB_REPO/zip/refs/heads/$GITHUB_BRANCH"
-if [ -s "$TMP_DIR/repo.zip" ]; then
-  cd "$TMP_DIR"
-  unzip -oq repo.zip
-  REPO_DIR="$(find "$TMP_DIR" -maxdepth 1 -type d -name "${GITHUB_REPO}-*" | head -1)"
-  [ -z "$REPO_DIR" ] && REPO_DIR="$TMP_DIR/${GITHUB_REPO}-${GITHUB_BRANCH}"
-  if [ -f "$REPO_DIR/release/xpanel.zip" ]; then
-    cp "$REPO_DIR/release/xpanel.zip" "$TMP_DIR/xpanel.zip"
-    echo -e "     已获取最新安装包"
-  fi
-fi
+# 最低版本要求（低于此版本视为拿到缓存旧包，自动重试）
+# ★ 发新版时记得把这里改成新版本号 ★
+EXPECT_VER="v1.2.2"
 
-# 方式②：回退 raw（codeload 失败时）
+ver_ge() { # 判断 $1 版本 >= $2 版本
+  [ "$(printf '%s\n%s\n' "$1" "$2" | sort -V | tail -1)" = "$1" ]
+}
+
+# 方式①：GitHub codeload —— 直接从 git 拉，CDN 缓存延迟时自动重试
+echo -e "     [方式1] codeload 拉取最新仓库 ..."
+attempt=0
+GOT_VER=""
+while [ $attempt -lt 6 ]; do
+  attempt=$((attempt+1))
+  rm -f "$TMP_DIR/repo.zip"
+  curl -sSL --retry 3 --retry-delay 2 -o "$TMP_DIR/repo.zip" "https://codeload.github.com/$GITHUB_USER/$GITHUB_REPO/zip/refs/heads/$GITHUB_BRANCH"
+  if [ -s "$TMP_DIR/repo.zip" ]; then
+    cd "$TMP_DIR"
+    rm -rf "${GITHUB_REPO}-"*
+    unzip -oq repo.zip
+    REPO_DIR="$(find "$TMP_DIR" -maxdepth 1 -type d -name "${GITHUB_REPO}-*" | head -1)"
+    [ -z "$REPO_DIR" ] && REPO_DIR="$TMP_DIR/${GITHUB_REPO}-${GITHUB_BRANCH}"
+    if [ -f "$REPO_DIR/release/xpanel.zip" ]; then
+      # 解压到临时目录，检查版本号
+      rm -rf "$TMP_DIR/ver_chk"; mkdir -p "$TMP_DIR/ver_chk"
+      unzip -oq "$REPO_DIR/release/xpanel.zip" -d "$TMP_DIR/ver_chk" 2>/dev/null
+      GOT_VER="$(grep -o 'v1\.[0-9][0-9]*\.[0-9][0-9]*' "$TMP_DIR/ver_chk/install.sh" 2>/dev/null | head -1)"
+      if [ -n "$GOT_VER" ] && ver_ge "$GOT_VER" "$EXPECT_VER"; then
+        cp "$REPO_DIR/release/xpanel.zip" "$TMP_DIR/xpanel.zip"
+        echo -e "     已获取最新安装包（$GOT_VER）"
+        break
+      else
+        echo -e "     检测到旧版本包（${GOT_VER:-未知}），CDN 缓存延迟，${attempt}/6 重试中..."
+        sleep 3
+      fi
+    else
+      echo -e "     仓库内未找到 release/xpanel.zip，${attempt}/6 重试中..."
+      sleep 3
+    fi
+  else
+    echo -e "     codeload 下载失败，${attempt}/6 重试中..."
+    sleep 3
+  fi
+done
+
+# 方式②：回退 raw（codeload 失败或反复拿到旧包时）
 if [ ! -s "$TMP_DIR/xpanel.zip" ]; then
   echo -e "     [方式2] raw 下载 ..."
   curl -sSL --retry 3 --retry-delay 2 -o "$TMP_DIR/xpanel.zip" "$RAW_BASE/release/xpanel.zip"
