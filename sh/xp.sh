@@ -57,9 +57,9 @@ command -v unzip >/dev/null 2>&1 || { echo -e "${RED}[错误] 无法安装 unzip
 # ---------- 3. 下载安装包 ----------
 TMP_DIR="/tmp/xpanel_install_$$"
 mkdir -p "$TMP_DIR"
-ZIP_URL="$RAW_BASE/release/xpanel.zip"
+ZIP_URL="$RAW_BASE/release/xpanel.zip?ts=$(date +%s)"
 echo -e "${GREEN}[1/3] 下载面板安装包 ...${NC}"
-echo -e "     $ZIP_URL"
+echo -e "     $RAW_BASE/release/xpanel.zip"
 curl -sSL --retry 3 --retry-delay 2 -o "$TMP_DIR/xpanel.zip" "$ZIP_URL"
 if [ ! -s "$TMP_DIR/xpanel.zip" ]; then
   echo -e "${RED}[错误] 下载失败，请检查:${NC}"
