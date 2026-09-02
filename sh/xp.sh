@@ -57,10 +57,27 @@ command -v unzip >/dev/null 2>&1 || { echo -e "${RED}[错误] 无法安装 unzip
 # ---------- 3. 下载安装包 ----------
 TMP_DIR="/tmp/xpanel_install_$$"
 mkdir -p "$TMP_DIR"
-ZIP_URL="$RAW_BASE/release/xpanel.zip?ts=$(date +%s)"
 echo -e "${GREEN}[1/3] 下载面板安装包 ...${NC}"
-echo -e "     $RAW_BASE/release/xpanel.zip"
-curl -sSL --retry 3 --retry-delay 2 -o "$TMP_DIR/xpanel.zip" "$ZIP_URL"
+
+# 方式①：GitHub codeload —— 直接从 git 拉最新，不走 CDN 缓存（最可靠）
+echo -e "     [方式1] codeload 拉取最新仓库 ..."
+curl -sSL --retry 3 --retry-delay 2 -o "$TMP_DIR/repo.zip" "https://codeload.github.com/$GITHUB_USER/$GITHUB_REPO/zip/refs/heads/$GITHUB_BRANCH"
+if [ -s "$TMP_DIR/repo.zip" ]; then
+  cd "$TMP_DIR"
+  unzip -oq repo.zip
+  REPO_DIR="$(find "$TMP_DIR" -maxdepth 1 -type d -name "${GITHUB_REPO}-*" | head -1)"
+  [ -z "$REPO_DIR" ] && REPO_DIR="$TMP_DIR/${GITHUB_REPO}-${GITHUB_BRANCH}"
+  if [ -f "$REPO_DIR/release/xpanel.zip" ]; then
+    cp "$REPO_DIR/release/xpanel.zip" "$TMP_DIR/xpanel.zip"
+    echo -e "     已获取最新安装包"
+  fi
+fi
+
+# 方式②：回退 raw（codeload 失败时）
+if [ ! -s "$TMP_DIR/xpanel.zip" ]; then
+  echo -e "     [方式2] raw 下载 ..."
+  curl -sSL --retry 3 --retry-delay 2 -o "$TMP_DIR/xpanel.zip" "$RAW_BASE/release/xpanel.zip"
+fi
 if [ ! -s "$TMP_DIR/xpanel.zip" ]; then
   echo -e "${RED}[错误] 下载失败，请检查:${NC}"
   echo -e "${RED}  1. 仓库是否公开${NC}"
